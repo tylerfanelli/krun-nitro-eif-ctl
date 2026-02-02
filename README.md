@@ -1,2 +1,2 @@
-# krun-nitro-eif-ctl
-Tool to configure cached EIF files for the krun-nitro runtime for AWS Nitro Enclaves
+# krun-awsnitro-eif-ctl
+Tool to configure cached EIF files for the krun-awsnitro runtime for AWS Nitro Enclaves

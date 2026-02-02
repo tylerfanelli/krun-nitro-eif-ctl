@@ -63,7 +63,7 @@ pub mod build {
         Aarch64,
     }
 
-    /// Arguments to configure the EIF file built for use in krun-nitro.
+    /// Arguments to configure the EIF file built for use in krun-awsnitro.
     #[derive(Parser)]
     pub(super) struct BuildArgs {
         /// Architecture the EIF is being built for.
@@ -73,19 +73,19 @@ pub mod build {
         #[arg(short, long)]
         kernel: PathBuf,
         /// Enclave kernel cmdline.
-        #[arg(short, long, default_value = "/usr/share/krun-nitro/cmdline")]
+        #[arg(short, long, default_value = "/usr/share/krun-awsnitro/cmdline")]
         cmdline: PathBuf,
-        /// krun-nitro init binary.
-        #[arg(long, default_value = "/usr/share/krun-nitro/init")]
+        /// krun-awsnitro init binary.
+        #[arg(long, default_value = "/usr/share/krun-awsnitro/init")]
         init: PathBuf,
         /// NSM kernel module.
-        #[arg(long, default_value = "/usr/share/krun-nitro/nsm.ko")]
+        #[arg(long, default_value = "/usr/share/krun-awsnitro/nsm.ko")]
         nsm: PathBuf,
-        /// Path to write the krun-nitro initrd.
-        #[arg(long, default_value = "/usr/share/krun-nitro/bootstrap-initrd.img")]
+        /// Path to write the krun-awsnitro initrd.
+        #[arg(long, default_value = "/usr/share/krun-awsnitro/bootstrap-initrd.img")]
         initrd: PathBuf,
         /// Path to write the EIF image to.
-        #[arg(short, long, default_value = "/usr/share/krun-nitro/krun-nitro.eif")]
+        #[arg(short, long, default_value = "/usr/share/krun-awsnitro/krun-awsnitro.eif")]
         path: PathBuf,
     }
 
@@ -140,11 +140,11 @@ pub mod build {
         let version = env!("CARGO_PKG_VERSION").to_string();
 
         Ok(EifIdentityInfo {
-            img_name: "krun-nitro-eif".to_string(),
+            img_name: "krun-awsnitro-eif".to_string(),
             img_version: "n/a".to_string(),
             build_info: EifBuildInfo {
                 build_time: format!("{}", datetime),
-                build_tool: "krun-nitro-eif-ctl".to_string(),
+                build_tool: "krun-awsnitro-eif-ctl".to_string(),
                 build_tool_version: version,
                 img_os: "n/a".to_string(),
                 img_kernel: kernel_name,

@@ -1279,7 +1279,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "krun-nitro-eif-ctl"
+name = "krun-awsnitro-eif-ctl"
 version = "0.1.0"
 dependencies = [
  "anyhow",

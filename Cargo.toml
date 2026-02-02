@@ -1,11 +1,11 @@
 [package]
-name = "krun-nitro-eif-ctl"
+name = "krun-awsnitro-eif-ctl"
 version = "0.1.0"
 edition = "2024"
 license = "Apache-2.0"
-repository = "https://github.com/tylerfanelli/krun-nitro-eif-ctl"
+repository = "https://github.com/tylerfanelli/krun-awsnitro-eif-ctl"
 authors = ["Tyler Fanelli <tfanelli@redhat.com>"]
-description = "krun-nitro EIF configuration tool"
+description = "krun-awsnitro EIF configuration tool"
 
 [dependencies]
 anyhow = "1.0"
