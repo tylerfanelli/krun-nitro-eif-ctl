@@ -73,23 +73,19 @@ pub mod build {
         #[arg(short, long)]
         kernel: PathBuf,
         /// Enclave kernel cmdline.
-        #[arg(short, long, default_value = "/usr/share/krun-awsnitro/cmdline")]
+        #[arg(short, long, default_value = "/etc/krun-awsnitro/cmdline")]
         cmdline: PathBuf,
         /// krun-awsnitro init binary.
-        #[arg(long, default_value = "/usr/share/krun-awsnitro/init")]
+        #[arg(long, default_value = "/etc/krun-awsnitro/init")]
         init: PathBuf,
         /// NSM kernel module.
-        #[arg(long, default_value = "/usr/share/krun-awsnitro/nsm.ko")]
+        #[arg(long, default_value = "/etc/krun-awsnitro/nsm.ko")]
         nsm: PathBuf,
         /// Path to write the krun-awsnitro initrd.
-        #[arg(long, default_value = "/usr/share/krun-awsnitro/bootstrap-initrd.img")]
+        #[arg(long, default_value = "/etc/krun-awsnitro/bootstrap-initrd.img")]
         initrd: PathBuf,
         /// Path to write the EIF image to.
-        #[arg(
-            short,
-            long,
-            default_value = "/usr/share/krun-awsnitro/krun-awsnitro.eif"
-        )]
+        #[arg(short, long, default_value = "/etc/krun-awsnitro/krun-awsnitro.eif")]
         path: PathBuf,
     }
 
