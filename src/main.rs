@@ -85,7 +85,11 @@ pub mod build {
         #[arg(long, default_value = "/usr/share/krun-awsnitro/bootstrap-initrd.img")]
         initrd: PathBuf,
         /// Path to write the EIF image to.
-        #[arg(short, long, default_value = "/usr/share/krun-awsnitro/krun-awsnitro.eif")]
+        #[arg(
+            short,
+            long,
+            default_value = "/usr/share/krun-awsnitro/krun-awsnitro.eif"
+        )]
         path: PathBuf,
     }
 
