@@ -180,7 +180,7 @@ pub mod build {
     fn initrd(args: &BuildArgs) -> Result<()> {
         let cfg_file = initrd_cfg(args).context("unable to generate initrd config YAML")?;
 
-        let output = Command::new("/home/ec2-user/blobs/linuxkit")
+        let output = Command::new("linuxkit")
             .args([
                 "build",
                 "--name",
