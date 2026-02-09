@@ -156,20 +156,13 @@ pub mod build {
 
     #[derive(Debug, Serialize, Deserialize)]
     struct InitRdTemplate {
-        files: (DirTemplate, FileTemplate, FileTemplate),
+        files: (FileTemplate, FileTemplate),
     }
 
     #[derive(Debug, Serialize, Deserialize)]
     struct FileTemplate {
         path: String,
         source: String,
-        mode: String,
-    }
-
-    #[derive(Debug, Serialize, Deserialize)]
-    struct DirTemplate {
-        path: String,
-        directory: bool,
         mode: String,
     }
 
@@ -198,12 +191,6 @@ pub mod build {
 
     fn initrd_cfg(args: &BuildArgs) -> Result<NamedTempFile> {
         let template = {
-            let dev = DirTemplate {
-                path: String::from("dev"),
-                directory: true,
-                mode: String::from("0755"),
-            };
-
             let init = FileTemplate {
                 path: String::from("init"),
                 source: format!("{}", args.init.display()),
@@ -216,9 +203,7 @@ pub mod build {
                 mode: String::from("0755"),
             };
 
-            InitRdTemplate {
-                files: (dev, init, nsm),
-            }
+            InitRdTemplate { files: (init, nsm) }
         };
 
         let yaml = serde_yaml::to_string(&template)
