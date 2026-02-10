@@ -47,7 +47,7 @@ pub mod build {
     use serde_json::Value;
     use sha2::{Digest, Sha384};
     use std::{
-        fs::{self, OpenOptions},
+        fs::{self, File, OpenOptions},
         io,
         path::{Path, PathBuf},
         time::SystemTime,
@@ -59,6 +59,91 @@ pub mod build {
         X86_64,
         #[clap(name = "aarch64")]
         Aarch64,
+    }
+
+    struct Initrd {
+        path: PathBuf,
+        init: PathBuf,
+        modules: Vec<PathBuf>,
+    }
+
+    impl From<&BuildArgs> for Initrd {
+        fn from(args: &BuildArgs) -> Self {
+            let modules = vec![args.nsm.clone()];
+
+            Self {
+                path: args.initrd.clone(),
+                init: args.init.clone(),
+                modules,
+            }
+        }
+    }
+
+    impl Initrd {
+        fn build(&mut self) -> Result<()> {
+            let mut file = OpenOptions::new()
+                .read(true)
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(self.path.clone())
+                .context(format!("unable to create/open {:?}", self.path))?;
+
+            self.write_file("init", &self.init.clone(), &mut file)?;
+
+            let mods_dir = NewcBuilder::new("krun_linux_mods")
+                .mode(0o40755)
+                .set_mode_file_type(cpio::newc::ModeFileType::Directory);
+            let writer = mods_dir.write(&mut file, 0);
+            writer.finish().context(
+                "unable to create directory to store configurable enclave kernel modules",
+            )?;
+
+            for entry in self.modules.iter() {
+                let file_osstr = entry.file_name().context(format!(
+                    "unable to get OS file name of {:?}",
+                    entry.as_path()
+                ))?;
+                let file_name = file_osstr.to_str().context(format!(
+                    "unable to get file name string of {:?}",
+                    entry.as_path()
+                ))?;
+
+                self.write_file(&format!("krun_linux_mods/{}", file_name), entry, &mut file)?;
+            }
+
+            let _ = trailer(&file).context("unable to write trailer entry to CPIO archive")?;
+
+            Ok(())
+        }
+
+        fn write_file(&self, name: &str, path: &Path, file: &mut File) -> Result<()> {
+            let cpio = NewcBuilder::new(name)
+                .mode(0o100755)
+                .dev_major(3)
+                .dev_minor(1);
+
+            let contents = fs::read(path).context(format!("unable to read from {:?}", path))?;
+
+            let mut writer = cpio.write(
+                file,
+                contents
+                    .len()
+                    .try_into()
+                    .context(format!("unable to convert file size of {:?} to u32", path))?,
+            );
+            io::copy(&mut contents.as_slice(), &mut writer).context(format!(
+                "unable to copy contents of {:?} to CPIO archive writer",
+                path
+            ))?;
+
+            writer.finish().context(format!(
+                "unable to complete write of {:?} to CPIO archive",
+                path
+            ))?;
+
+            Ok(())
+        }
     }
 
     /// Arguments to configure the EIF file built for use in krun-awsnitro.
@@ -98,7 +183,8 @@ pub mod build {
             Arch::Aarch64 => EIF_HDR_ARCH_ARM64,
         };
 
-        initrd(&args).context("unable to build initrd")?;
+        let mut initrd = Initrd::from(&args);
+        initrd.build().context("unable to build initrd")?;
 
         let mut build = EifBuilder::new(
             &args.kernel,
@@ -150,53 +236,5 @@ pub mod build {
             docker_info: Value::Null,
             custom_info: Value::Null,
         })
-    }
-
-    fn initrd(args: &BuildArgs) -> Result<()> {
-        let mut file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(args.initrd.clone())
-            .context(format!("unable to create/open {:?}", args.initrd))?;
-
-        cpio_write("init", &args.init, &mut file)
-            .context("unable to write init binary to initrd")?;
-        cpio_write("nsm.ko", &args.nsm, &mut file)
-            .context("unable to write NSM module to initrd")?;
-
-        let _ = trailer(file).context("unable to write trailer entry to CPIO archive")?;
-
-        Ok(())
-    }
-
-    fn cpio_write(name: &str, path: &PathBuf, output: &mut fs::File) -> Result<()> {
-        let cpio = NewcBuilder::new(name)
-            .mode(0o0755)
-            .mode(0o100755)
-            .dev_major(3)
-            .dev_minor(1);
-
-        let contents = fs::read(path).context(format!("unable to read from {:?}", path))?;
-
-        let mut writer = cpio.write(
-            output,
-            contents
-                .len()
-                .try_into()
-                .context(format!("unable to convert file size of {:?} to u32", path))?,
-        );
-        io::copy(&mut contents.as_slice(), &mut writer).context(format!(
-            "unable to copy contents of {:?} to CPIO archive writer",
-            path
-        ))?;
-
-        writer.finish().context(format!(
-            "unable to complete write of {:?} to CPIO archive",
-            path
-        ))?;
-
-        Ok(())
     }
 }
