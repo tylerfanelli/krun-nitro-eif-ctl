@@ -36,24 +36,22 @@ fn main() -> Result<()> {
 /// Subcommand to build a new EIF image.
 pub mod build {
     use super::*;
-    use anyhow::{Context, anyhow};
+    use anyhow::Context;
     use aws_nitro_enclaves_image_format::{
         defs::{EIF_HDR_ARCH_ARM64, EifBuildInfo, EifIdentityInfo},
         utils::EifBuilder,
     };
     use chrono::{DateTime, Utc};
     use clap::ValueEnum;
-    use serde::{Deserialize, Serialize};
+    use cpio::{NewcBuilder, newc::trailer};
     use serde_json::Value;
     use sha2::{Digest, Sha384};
     use std::{
         fs::{self, OpenOptions},
-        io::Write,
+        io,
         path::{Path, PathBuf},
-        process::Command,
         time::SystemTime,
     };
-    use tempfile::NamedTempFile;
 
     #[derive(Clone, Debug, ValueEnum)]
     pub enum Arch {
@@ -111,7 +109,7 @@ pub mod build {
             build_info,
         );
 
-        build.add_ramdisk(Path::new(&format!("{}-initrd.img", args.initrd.display())));
+        build.add_ramdisk(Path::new(&args.initrd));
 
         let mut output = OpenOptions::new()
             .read(true)
@@ -154,67 +152,51 @@ pub mod build {
         })
     }
 
-    #[derive(Debug, Serialize, Deserialize)]
-    struct InitRdTemplate {
-        files: (FileTemplate, FileTemplate),
-    }
-
-    #[derive(Debug, Serialize, Deserialize)]
-    struct FileTemplate {
-        path: String,
-        source: String,
-        mode: String,
-    }
-
     fn initrd(args: &BuildArgs) -> Result<()> {
-        let cfg_file = initrd_cfg(args).context("unable to generate initrd config YAML")?;
+        let mut file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(args.initrd.clone())
+            .context(format!("unable to create/open {:?}", args.initrd))?;
 
-        let output = Command::new("linuxkit")
-            .args([
-                "build",
-                "--name",
-                &format!("{}", args.initrd.display()),
-                "--format",
-                "kernel+initrd-nogz",
-                "--no-sbom",
-                cfg_file.path().to_str().unwrap(),
-            ])
-            .output()
-            .context("unable to generate initrd")?;
+        cpio_write("init", &args.init, &mut file)
+            .context("unable to write init binary to initrd")?;
+        cpio_write("nsm.ko", &args.nsm, &mut file)
+            .context("unable to write NSM module to initrd")?;
 
-        if !output.status.success() {
-            return Err(anyhow!("linuxkit failed to generate initrd"));
-        }
+        let _ = trailer(file).context("unable to write trailer entry to CPIO archive")?;
 
         Ok(())
     }
 
-    fn initrd_cfg(args: &BuildArgs) -> Result<NamedTempFile> {
-        let template = {
-            let init = FileTemplate {
-                path: String::from("init"),
-                source: format!("{}", args.init.display()),
-                mode: String::from("0755"),
-            };
+    fn cpio_write(name: &str, path: &PathBuf, output: &mut fs::File) -> Result<()> {
+        let cpio = NewcBuilder::new(name)
+            .mode(0o0755)
+            .mode(0o100755)
+            .dev_major(3)
+            .dev_minor(1);
 
-            let nsm = FileTemplate {
-                path: String::from("nsm.ko"),
-                source: format!("{}", args.nsm.display()),
-                mode: String::from("0755"),
-            };
+        let contents = fs::read(path).context(format!("unable to read from {:?}", path))?;
 
-            InitRdTemplate { files: (init, nsm) }
-        };
+        let mut writer = cpio.write(
+            output,
+            contents
+                .len()
+                .try_into()
+                .context(format!("unable to convert file size of {:?} to u32", path))?,
+        );
+        io::copy(&mut contents.as_slice(), &mut writer).context(format!(
+            "unable to copy contents of {:?} to CPIO archive writer",
+            path
+        ))?;
 
-        let yaml = serde_yaml::to_string(&template)
-            .context("unable to generate initrd YAML configuration")?;
+        writer.finish().context(format!(
+            "unable to complete write of {:?} to CPIO archive",
+            path
+        ))?;
 
-        let mut tmpfile = NamedTempFile::new().context("unable to generate named tempfile")?;
-
-        tmpfile
-            .write_all(yaml.as_bytes())
-            .context("unable to write initrd YAML configuration to tempfile")?;
-
-        Ok(tmpfile)
+        Ok(())
     }
 }
