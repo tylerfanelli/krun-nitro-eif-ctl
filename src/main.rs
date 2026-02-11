@@ -69,7 +69,11 @@ pub mod build {
 
     impl From<&BuildArgs> for Initrd {
         fn from(args: &BuildArgs) -> Self {
-            let modules = vec![args.nsm.clone()];
+            let modules = vec![
+                args.nsm.clone(),
+                args.virtio_vsock.clone(),
+                args.virtio_mmio.clone(),
+            ];
 
             Self {
                 path: args.initrd.clone(),
@@ -164,6 +168,12 @@ pub mod build {
         /// NSM kernel module.
         #[arg(long, default_value = "/etc/krun-awsnitro/nsm.ko")]
         nsm: PathBuf,
+        /// virtio-mmio kernel module.
+        #[arg(long)]
+        virtio_mmio: PathBuf,
+        /// virtio-vsock kernel module.
+        #[arg(long)]
+        virtio_vsock: PathBuf,
         /// Path to write the krun-awsnitro initrd.
         #[arg(long, default_value = "/etc/krun-awsnitro/bootstrap-initrd.img")]
         initrd: PathBuf,
