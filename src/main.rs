@@ -67,19 +67,27 @@ pub mod build {
         modules: Vec<PathBuf>,
     }
 
-    impl From<&BuildArgs> for Initrd {
-        fn from(args: &BuildArgs) -> Self {
-            let modules = vec![
-                args.nsm.clone(),
-                args.virtio_vsock.clone(),
-                args.virtio_mmio.clone(),
-            ];
+    impl TryFrom<&BuildArgs> for Initrd {
+        type Error = anyhow::Error;
 
-            Self {
+        fn try_from(args: &BuildArgs) -> Result<Self> {
+            let modules: Vec<PathBuf> = {
+                let json_str = fs::read_to_string(&args.kernel_modules).context(format!(
+                    "unable to read {:?} to string",
+                    args.kernel_modules
+                ))?;
+
+                serde_json::from_str(&json_str).context(format!(
+                    "unable to deserialize {:?} to JSON array",
+                    args.kernel_modules
+                ))?
+            };
+
+            Ok(Self {
                 path: args.initrd.clone(),
                 init: args.init.clone(),
                 modules,
-            }
+            })
         }
     }
 
@@ -165,15 +173,9 @@ pub mod build {
         /// krun-awsnitro init binary.
         #[arg(long, default_value = "/etc/krun-awsnitro/init")]
         init: PathBuf,
-        /// NSM kernel module.
-        #[arg(long, default_value = "/etc/krun-awsnitro/nsm.ko")]
-        nsm: PathBuf,
-        /// virtio-mmio kernel module.
+        /// JSON-serialized kernel modules to include in the enclave image.
         #[arg(long)]
-        virtio_mmio: PathBuf,
-        /// virtio-vsock kernel module.
-        #[arg(long)]
-        virtio_vsock: PathBuf,
+        kernel_modules: PathBuf,
         /// Path to write the krun-awsnitro initrd.
         #[arg(long, default_value = "/etc/krun-awsnitro/bootstrap-initrd.img")]
         initrd: PathBuf,
@@ -193,7 +195,7 @@ pub mod build {
             Arch::Aarch64 => EIF_HDR_ARCH_ARM64,
         };
 
-        let mut initrd = Initrd::from(&args);
+        let mut initrd = Initrd::try_from(&args).context("unable to build initrd")?;
         initrd.build().context("unable to build initrd")?;
 
         let mut build = EifBuilder::new(
